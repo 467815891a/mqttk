@@ -82,7 +82,7 @@ class SubscriptionFrame(ttk.Frame):
 
         self.options_frame = ttk.Frame(self)
         self.options_frame.pack(side=tk.BOTTOM, expand=1, fill='x')
-        self.unsubscribe_button = ttk.Button(self.options_frame, text="Unsubscribe")
+        self.unsubscribe_button = ttk.Button(self.options_frame, text="取消订阅")
         self.unsubscribe_button.pack(side=tk.RIGHT, padx=2, pady=2)
         self.unsubscribe_button["command"] = self.on_unsubscribe
 
@@ -153,20 +153,20 @@ class SubscribeTab(ttk.Frame):
         # Subscribe selector combobox
         self.subscribe_selector = ttk.Combobox(self.subscribe_bar_frame, width=30, exportselection=False)
         self.subscribe_selector.pack(side=tk.LEFT, padx=3, pady=3)
-        self.subscribe_selector["values"] = []
+        self.subscribe_selector["values"] = ["Chat","LED"]
         # Subscribe button
         self.subscribe_button = ttk.Button(self.subscribe_bar_frame, width=10)
         self.subscribe_button.pack(side=tk.LEFT, padx=3, pady=3)
-        self.subscribe_button["text"] = "Subscribe"
+        self.subscribe_button["text"] = "订阅"
         self.subscribe_button["command"] = self.add_subscription
         # Flush messages button
-        self.flush_messages_button = ttk.Button(self.subscribe_bar_frame, text="Clear messages")
+        self.flush_messages_button = ttk.Button(self.subscribe_bar_frame, text="清空消息")
         self.flush_messages_button.pack(side=tk.RIGHT, padx=3)
         self.flush_messages_button["command"] = self.flush_messages
         # Autoscroll checkbox
-        self.autoscroll_state = tk.IntVar()
+        self.autoscroll_state = tk.IntVar(value=1)
         self.autoscroll_checkbox = ttk.Checkbutton(self.subscribe_bar_frame,
-                                                   text="Autoscroll",
+                                                   text="自动滚动",
                                                    variable=self.autoscroll_state,
                                                    offvalue=0,
                                                    onvalue=1)
@@ -302,8 +302,14 @@ class SubscribeTab(ttk.Frame):
         self.on_message_select()
         pass
 
-    def add_message(self, message_title, colour):
-        self.incoming_messages_list.insert(tk.END, message_title)
+    def add_message(self, message_title, message_id,colour):
+        message_data = self.get_message_details(message_id)
+        try:
+            payload_decoded = str(message_data.get("payload", "").decode("utf-8"))
+        except Exception:
+            payload_decoded = payload
+        self.message_topic_label["state"] = "normal"
+        self.incoming_messages_list.insert(tk.END, message_title+"  \n消息内容："+payload_decoded)
         self.incoming_messages_list.itemconfig(tk.END, fg=colour)
         if bool(self.autoscroll_state.get()):
             self.incoming_messages_list.selection_clear(0, tk.END)
@@ -439,17 +445,14 @@ class SubscribeTab(ttk.Frame):
             "retained": mqtt_message_object.retain,
             "timestamp": timestamp
         }
-        message_title = "{} #{:05d} [QoS:{}] [{}] - {}".format(simple_time_string,
-                                                               new_message_id,
-                                                               mqtt_message_object.qos,
-                                                               "R" if mqtt_message_object.retain else " ",
+        message_title = "接收时间[{} ] 消息主题[{}]".format(simple_time_string,
                                                                mqtt_message_object.topic)
         try:
             colour = self.subscription_frames[subscription_pattern].colour
         except Exception as e:
             self.log.warning("Failed to add new message:", e, mqtt_message_object.topic)
         else:
-            self.add_message(message_title, colour)
+            self.add_message(message_title, new_message_id, colour)
 
     def load_subscription_history(self):
         self.subscribe_selector.configure(

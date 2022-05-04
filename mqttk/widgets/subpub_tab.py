@@ -16,7 +16,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
-
+from functools import partial
 import tkinter as tk
 import tkinter.ttk as ttk
 from mqttk.widgets.scrolled_text import CustomScrolledText
@@ -24,7 +24,8 @@ from mqttk.widgets.scroll_frame import ScrollFrame
 from mqttk.widgets.dialogs import PublishNameDialog
 import base64
 from mqttk.constants import QOS_NAMES, CONNECT, DISCONNECT
-
+import time
+from datetime import datetime
 
 class PublishHistoryFrame(ttk.Frame):
     def __init__(self,
@@ -95,10 +96,13 @@ class PublishHistoryFrame(ttk.Frame):
                               self.configuration["retained"])
 
 
-class PublishTab(ttk.Frame):
-    def __init__(self, master, app, log, root_style, *args, **kwargs):
+class SubPubTab(ttk.Frame):
+    def __init__(self, master, app, config_handler, log, root_style, *args, **kwargs):
         super().__init__(master=master, *args, **kwargs)
-
+        self.subscription_frames = {}
+        self.color_carousel = -1
+        self.last_connection = None
+        self.issubscribe = False
         background_colour = root_style.lookup("TLabel", "background")
 
         self.app_root = app.root
@@ -107,7 +111,9 @@ class PublishTab(ttk.Frame):
         self.mqtt_manager = None
         self.topic_history = []
         self.log = log
-
+        self.messages = {}
+        self.mute_patterns = []
+        self.message_id_counter = 0
         self.current_publish_history_selected = None  # Reference to the selected PublishHistoryFrame
         self.publish_history_frames = {}  # publish history name to object reference
         self.selected_history_unselect_callback = None
@@ -123,10 +129,10 @@ class PublishTab(ttk.Frame):
         self.saved_publishes.pack(fill="y", expand=1, side=tk.LEFT)
         self.publish_paned_window.add(self.saved_publishes, width=350)
 
-        self.publish_interface = ttk.Frame(self)
-        self.publish_interface.pack(fill='both', expand=1)
+        self.subpub_interface = ttk.Frame(self)
+        self.subpub_interface.pack(fill='both', expand=1)
 
-        self.publish_interface_actions = ttk.Frame(self.publish_interface)
+        self.publish_interface_actions = ttk.Frame(self.subpub_interface)
         self.publish_interface_actions.pack(fill='x', side=tk.TOP)
         self.publish_topic_selector = ttk.Combobox(self.publish_interface_actions, width=40)
         self.publish_topic_selector.pack(side=tk.LEFT, padx=4, pady=4)
@@ -135,6 +141,14 @@ class PublishTab(ttk.Frame):
         self.publish_button = ttk.Button(self.publish_interface_actions, text="发布")
         self.publish_button['command'] = self.on_publish_button
         self.publish_button.pack(side=tk.LEFT, padx=2, pady=4)
+        # Subscribe button
+        self.subscribe_button = ttk.Button(self.publish_interface_actions, text="订阅")
+        self.subscribe_button.pack(side=tk.LEFT, padx=2, pady=4)
+        self.subscribe_button["command"] = self.add_subscription
+
+        self.unsubscribe_button = ttk.Button(self.publish_interface_actions, text="取消订阅")
+        self.unsubscribe_button.pack(side=tk.LEFT, padx=2, pady=4)
+        self.unsubscribe_button["command"] = self.on_unsubscribe
 
         self.save_publish_button = ttk.Button(self.publish_interface_actions, text="Save")
         self.save_publish_button.pack(side=tk.LEFT, padx=4, pady=4)
@@ -155,12 +169,155 @@ class PublishTab(ttk.Frame):
         self.qos_selector.current(0)
         self.qos_selector.pack(side=tk.RIGHT, pady=4, padx=2)
 
-        self.payload_editor = CustomScrolledText(self.publish_interface,
-                                                 font="Courier 13",
-                                                 background="white",
-                                                 foreground="black")
-        self.payload_editor.pack(fill="both", expand=1, side=tk.BOTTOM)
-        self.publish_paned_window.add(self.publish_interface)
+        self.payload_editor = CustomScrolledText(self.subpub_interface,font="Courier 13",background="white", foreground="black",height = 5)
+        self.payload_editor.pack(fill="x", expand=False, after=self.publish_interface_actions)
+
+        # Subscribe bottom part frame
+        self.subscribe_tab_bottom_frame = ttk.Frame(self.subpub_interface)
+        self.subscribe_tab_bottom_frame.pack(fill="both", side=tk.BOTTOM, expand=True)
+        # Subscription list paned window
+        self.subscription_paned_window = tk.PanedWindow(self.subscribe_tab_bottom_frame,
+                                                        orient=tk.HORIZONTAL,
+                                                        sashrelief="groove",
+                                                        sashwidth=6,
+                                                        sashpad=2,
+                                                        background=background_colour)
+        self.subscription_paned_window.pack(side=tk.LEFT, fill="both", expand=1)
+
+
+        # Incoming message resizable panel
+        self.message_paned_window = tk.PanedWindow(self.subscribe_tab_bottom_frame,
+                                                   orient=tk.VERTICAL,
+                                                   sashrelief="groove",
+                                                   sashwidth=6,
+                                                   sashpad=2,
+                                                   background=background_colour)
+        self.message_paned_window.pack(fill='both', padx=3, pady=3, expand=1)
+        self.subscription_paned_window.add(self.message_paned_window)
+
+        # Incoming messages listbox
+        self.incoming_messages_frame = ttk.Frame(self.subscribe_tab_bottom_frame)
+        self.incoming_messages_frame.pack(expand=1, fill='both')
+
+        self.incoming_messages_list = tk.Text(self.incoming_messages_frame, font="Courier 13", background=background_colour, wrap=tk.WORD)  # TkFixedFont, "Courier 13"
+
+        self.incoming_messages_scrollbar = ttk.Scrollbar(self.incoming_messages_frame,
+                                                         orient='vertical',
+                                                         command=self.incoming_messages_list.yview)
+        self.incoming_messages_list['yscrollcommand'] = self.incoming_messages_scrollbar.set
+        self.incoming_messages_scrollbar.pack(side=tk.RIGHT, fill='y')
+
+        self.incoming_messages_scrollbar_h = ttk.Scrollbar(self.incoming_messages_frame,
+                                                           orient='horizontal',
+                                                           command=self.incoming_messages_list.xview)
+        self.incoming_messages_list['xscrollcommand'] = self.incoming_messages_scrollbar_h.set
+        self.incoming_messages_scrollbar_h.pack(side=tk.BOTTOM, fill='x')
+        self.incoming_messages_list.pack(side=tk.LEFT, fill='both', expand=1)
+
+        self.message_paned_window.add(self.incoming_messages_frame, height=300)
+        self.publish_paned_window.add(self.subpub_interface)
+
+    def interface_toggle(self, connection_state, mqtt_manager, current_connection):
+        self.mqtt_manager = mqtt_manager
+        if connection_state == CONNECT:
+            self.load_publish_and_topic_history(current_connection)
+            self.last_connection = self.current_connection
+        if connection_state == DISCONNECT:
+            if self.last_connection != current_connection:
+                self.flush_messages()
+            for name, publish_history_element in self.publish_history_frames.items():
+                publish_history_element.pack_forget()
+                publish_history_element.destroy()
+            self.publish_history_frames = {}
+            self.payload_editor.delete(1.0, tk.END)
+            self.publish_topic_selector.configure(values=["Chat","LED"])
+            self.publish_topic_selector.set("")
+
+        self.publish_button.configure(state="normal" if connection_state is CONNECT else "disabled")
+        self.save_publish_button.configure(state="normal" if connection_state is CONNECT else "disabled")
+        self.retained_checkbox.configure(state="normal" if connection_state is CONNECT else "disabled")
+        self.qos_selector.configure(state="readonly" if connection_state is CONNECT else "disabled")
+        self.publish_topic_selector.configure(state="normal" if connection_state is CONNECT else "disabled")
+        self.payload_editor.configure(state="normal" if connection_state is CONNECT else "disabled")
+        self.current_connection = current_connection
+        self.subscribe_button.configure(state="normal" if (connection_state is CONNECT and self.issubscribe == False) else "disabled")
+        self.publish_topic_selector.configure(state="normal" if connection_state is CONNECT else "disabled")
+        self.unsubscribe_button.configure(state="normal" if (connection_state is CONNECT and self.issubscribe == True) else "disabled")
+        self.publish_topic_selector.configure(state="normal" if (connection_state is DISCONNECT or self.issubscribe == False) else "disabled")
+
+    def add_message(self, message_title, message_id):
+        message_data = self.get_message_details(message_id)
+        try:
+            payload_decoded = str(message_data.get("payload", "").decode("utf-8"))
+        except Exception:
+            payload_decoded = payload
+        self.incoming_messages_list.insert(tk.END, message_title+"  \n消息内容："+payload_decoded+"\n\n")
+        self.incoming_messages_list.see("end")
+
+    def add_new_message(self, mqtt_message_object, subscription_pattern):
+        timestamp = time.time()
+        # Theoretically there will be no race condition here?
+        new_message_id = self.message_id_counter
+        self.message_id_counter += 1
+        simple_time_string = datetime.fromtimestamp(round(timestamp, 3)).strftime("%H:%M:%S.%f")[:-3]
+        self.messages[new_message_id] = {
+            "topic": mqtt_message_object.topic,
+            "payload": mqtt_message_object.payload,
+            "qos": mqtt_message_object.qos,
+            "subscription_pattern": subscription_pattern,
+            "retained": mqtt_message_object.retain,
+            "timestamp": timestamp
+        }
+        message_title = "接收时间[{} ] 消息主题[{}]".format(simple_time_string, mqtt_message_object.topic)
+        self.add_message(message_title, new_message_id)
+
+    def add_subscription(self):
+        topic = self.publish_topic_selector.get()
+        #self.mqtt_manager = mqtt_manager
+        if topic != "" :
+            #self.add_subscription_frame(topic, self.on_unsubscribe)
+            try:
+                callback = partial(self.on_mqtt_message, subscription_pattern=topic)
+                callback.__name__ = "MyCallback"  # This is to fix some weird behaviour of the paho client on linux
+                self.mqtt_manager.add_subscription(topic_pattern=topic,on_message_callback=callback)
+                self.issubscribe = True
+                self.unsubscribe_button.configure(state="normal")
+                self.subscribe_button.configure(state="disabled")
+                self.publish_topic_selector.configure(state="disabled")
+            except Exception as e:
+                self.log.exception("Failed to subscribe!", e)
+                #self.subscription_frames[topic].on_unsubscribe()
+                return
+            # self.add_subscription_frame(topic, self.on_unsubscribe)
+            if self.publish_topic_selector["values"] == "":
+                self.publish_topic_selector["values"] = [topic]
+            elif topic not in self.publish_topic_selector['values']:
+                self.publish_topic_selector['values'] += (topic,)
+            #self.config_handler.add_subscription_history(self.current_connection,topic,self.subscription_frames[topic].colour)
+
+    def on_mqtt_message(self, _, __, msg, subscription_pattern):
+        self.add_new_message(mqtt_message_object=msg,
+                             subscription_pattern=subscription_pattern)
+
+    def get_message_details(self, message_id):
+        return self.messages.get(message_id, {})
+
+    def on_unsubscribe(self):
+        topic = self.publish_topic_selector.get()
+        try:
+            self.mqtt_manager.unsubscribe(topic)
+            self.issubscribe = False
+            self.subscribe_button.configure(state="normal")
+            self.unsubscribe_button.configure(state="disabled")
+            self.publish_topic_selector.configure(state="normal")
+        except Exception as e:
+            self.log.warning("Failed to unsubscribe", topic, "maybe a failed subscription?")
+
+    def flush_messages(self):
+        self.message_id_counter = 0
+        self.incoming_messages_list.delete(0, "end")
+        self.messages = {}
+
 
     def on_publish_history_delete(self, name):
         self.publish_history_frames[name].pack_forget()
@@ -273,23 +430,3 @@ class PublishTab(ttk.Frame):
         self.payload_editor.delete(1.0, tk.END)
         self.payload_editor.insert(1.0, base64.b64decode(history_item.configuration["payload"]).decode("utf-8"))
         self.current_publish_history_selected = history_item
-
-    def interface_toggle(self, connection_state, mqtt_manager=None, current_connection=None):
-        self.mqtt_manager = mqtt_manager
-        if connection_state == CONNECT:
-            self.load_publish_and_topic_history(current_connection)
-        if connection_state == DISCONNECT:
-            for name, publish_history_element in self.publish_history_frames.items():
-                publish_history_element.pack_forget()
-                publish_history_element.destroy()
-            self.publish_history_frames = {}
-            self.payload_editor.delete(1.0, tk.END)
-            self.publish_topic_selector.configure(values=["Chat","LED"])
-            self.publish_topic_selector.set("")
-
-        self.publish_button.configure(state="normal" if connection_state is CONNECT else "disabled")
-        self.save_publish_button.configure(state="normal" if connection_state is CONNECT else "disabled")
-        self.retained_checkbox.configure(state="normal" if connection_state is CONNECT else "disabled")
-        self.qos_selector.configure(state="readonly" if connection_state is CONNECT else "disabled")
-        self.publish_topic_selector.configure(state="normal" if connection_state is CONNECT else "disabled")
-        self.payload_editor.configure(state="normal" if connection_state is CONNECT else "disabled")

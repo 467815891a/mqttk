@@ -30,18 +30,18 @@ class HeaderFrame(ttk.Frame):
         self.connection_selector = ttk.Combobox(self, width=30, exportselection=False)
         self.connection_selector.pack(side=tk.LEFT, padx=3, pady=3)
         self.connection_selector.configure(state="readonly")
-        self.config_window_button = ttk.Button(self, width=10, text="Configure", command=app.spawn_configuration_window)
+        self.config_window_button = ttk.Button(self, width=15, text="配置经纪人/服务器", command=app.spawn_configuration_window)
         self.config_window_button.pack(side=tk.LEFT, expand=False, padx=3, pady=3)
-        self.connect_button = ttk.Button(self, width=10, text="Connect", command=app.on_connect_button)
+        self.connect_button = ttk.Button(self, width=10, text="连接服务器", command=app.on_connect_button)
         self.connect_button.pack(side=tk.LEFT, expand=False, padx=3, pady=3)
         self.disconnect_button = ttk.Button(self,
                                             width=10,
-                                            text="Disconnect",
+                                            text="断开连接",
                                             state="disabled",
                                             command=app.on_disconnect_button)
         self.disconnect_button.pack(side=tk.LEFT, expand=False, padx=3, pady=3)
 
-        self.connection_indicator = tk.Label(self, text="DISCONNECTED", bg="#ff6b6b")
+        self.connection_indicator = tk.Label(self, text="连接已断开", bg="#ff6b6b")
         self.connection_indicator.pack(side=tk.RIGHT, padx=5, pady=5)
         self.connection_error_notification = ttk.Label(self, foreground='red')
         self.connection_error_notification.pack(side=tk.RIGHT, expand=1, fill='x')
@@ -53,5 +53,5 @@ class HeaderFrame(ttk.Frame):
         self.disconnect_button.configure(state="normal" if connection_state is CONNECT else "disabled")
 
     def connection_indicator_toggle(self, connection_state):
-        self.connection_indicator.configure(text='CONNECTED' if connection_state == CONNECT else "DISCONNECTED",
+        self.connection_indicator.configure(text='连接成功' if connection_state == CONNECT else "连接已断开",
                                             bg="#76ff61" if connection_state == CONNECT else "#ff6b6b")

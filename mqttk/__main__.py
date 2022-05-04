@@ -1,7 +1,7 @@
-"""
+﻿"""
 MQTTk - Lightweight graphical MQTT client and message analyser
 
-Copyright (C) 2022  Máté Szabó
+Copyright (C) 2022  YangboWei
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@ except ImportError:
 from mqttk.widgets.subscribe_tab import SubscribeTab
 from mqttk.widgets.header_frame import HeaderFrame
 from mqttk.widgets.publish_tab import PublishTab
+from mqttk.widgets.subpub_tab import SubPubTab
 from mqttk.widgets.broker_stats import BrokerStats
 from mqttk.constants import CONNECT, DISCONNECT, EVENT_LEVELS
 from mqttk.widgets.log_tab import LogTab
@@ -54,11 +55,11 @@ from mqttk.MQTT_manager import MqttManager
 from paho.mqtt.client import MQTT_LOG_ERR, MQTT_LOG_INFO, MQTT_LOG_NOTICE, MQTT_LOG_WARNING
 
 
-__author__ = "Máté Szabó"
-__copyright__ = "Copyright 2022, Máté Szabó"
-__credits__ = ["Máté Szabó"]
+__author__ = "YangboWei"
+__copyright__ = "Copyright 2022, YangboWei"
+__credits__ = ["YangboWei"]
 __license__ = "GPLv3"
-__maintainer__ = "Máté Szabó"
+__maintainer__ = "YangboWei"
 __status__ = "Production"
 
 
@@ -133,8 +134,8 @@ class App:
                 saved_geometry.split("+")[2]))
 
         if out_of_bounds:
-            width = 1300
-            height = 900
+            width = 950
+            height = 600
             alignstr = '%dx%d+%d+%d' % (width, height, (screenwidth - width) / 2, (screenheight - height) / 2)
             root.geometry(alignstr)
         else:
@@ -225,13 +226,18 @@ class App:
         # ==================================== Subscribe tab ==========================================================
 
         self.subscribe_frame = SubscribeTab(self.tabs, self.config_handler, self.log, self.style)
-        self.tabs.add(self.subscribe_frame, text="Subscribe")
+        self.tabs.add(self.subscribe_frame, text="订阅者")
         self.subscribe_frame.autoscroll_state.set(int(self.config_handler.get_autoscroll()))
 
         # ====================================== Publish tab =========================================================
 
         self.publish_frame = PublishTab(self.tabs, self, self.log, self.style)
-        self.tabs.add(self.publish_frame, text="Publish")
+        self.tabs.add(self.publish_frame, text="发布者")
+
+        # ====================================== Subscribe + Publish 2in1 tab =========================================================
+
+        self.subpub_frame = SubPubTab(self.tabs, self, self.config_handler, self.log, self.style)
+        self.tabs.add(self.subpub_frame, text="订阅者+发布者")
 
         # ====================================== Topic browser tab ====================================================
 
@@ -256,6 +262,7 @@ class App:
         self.topic_browser.interface_toggle(DISCONNECT, None, None)
         self.header_frame.interface_toggle(DISCONNECT)
         self.publish_frame.interface_toggle(DISCONNECT)
+        self.subpub_frame.interface_toggle(DISCONNECT,None,None)
         self.broker_stats.interface_toggle(DISCONNECT, None)
 
     def on_client_disconnect(self, notify=None):
@@ -267,6 +274,7 @@ class App:
             self.topic_browser.interface_toggle(DISCONNECT, None, None)
             self.header_frame.interface_toggle(DISCONNECT)
             self.publish_frame.interface_toggle(DISCONNECT)
+            self.subpub_frame.interface_toggle(DISCONNECT,None,None)
             self.broker_stats.interface_toggle(DISCONNECT, None)
             self.header_frame.connection_indicator_toggle(DISCONNECT)
         except Exception as e:
@@ -277,6 +285,7 @@ class App:
         self.topic_browser.interface_toggle(CONNECT, self.mqtt_manager, self.header_frame.connection_selector.get())
         self.broker_stats.interface_toggle(CONNECT, self.mqtt_manager)
         self.publish_frame.interface_toggle(CONNECT, self.mqtt_manager, self.header_frame.connection_selector.get())
+        self.subpub_frame.interface_toggle(CONNECT, self.mqtt_manager, self.header_frame.connection_selector.get())
         self.header_frame.connection_indicator_toggle(CONNECT)
         self.subscribe_frame.load_subscription_history()
         self.topic_browser.load_subscription_history()
@@ -297,6 +306,7 @@ class App:
             self.header_frame.connection_error_notification["text"] = "Failed to connect, see log for details"
             self.header_frame.interface_toggle(DISCONNECT)
             self.publish_frame.interface_toggle(DISCONNECT)
+            self.subpub_frame.interface_toggle(DISCONNECT)
 
     def on_disconnect_button(self):
         if self.mqtt_manager is not None:

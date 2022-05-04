@@ -76,7 +76,7 @@ class AboutDialog(tk.Toplevel):
                                   highlightcolor=style.lookup("TLabel", "background"))
         self.about_content_frame.pack(expand=1, fill='x')
 
-        self.ok_button = ttk.Button(self.about_frame, text="OK")
+        self.ok_button = ttk.Button(self.about_frame, text="确定")
         self.ok_button.pack(side=tk.BOTTOM, pady=4)
         self.ok_button["command"] = self.on_destroy
         self.about_frame.pack(fill='both', expand=1)

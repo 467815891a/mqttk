@@ -19,6 +19,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import sys
 import os
+import uuid
 import traceback
 from pathlib import Path
 import json
@@ -32,11 +33,11 @@ SAVE = "save"
 
 DEFAULT_CONFIGURATION = {
     "connections": {
-        "test.mosquitto.org": {
+        "kexie.party": {
             "connection_parameters": {
-            "broker_addr": "test.mosquitto.org",
+            "broker_addr": "kexie.party",
             "broker_port": "1883",
-            "client_id": "272fb6890d1c4eefac4f46b39deb83fb",
+            "client_id": str(uuid.uuid4()).replace("-", ""),
             "user": "",
             "pass": "",
             "timeout": "10",

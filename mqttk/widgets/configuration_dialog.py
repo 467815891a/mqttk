@@ -26,7 +26,7 @@ from mqttk.constants import SSL_LIST, MQTT_VERSION_LIST
 import uuid
 from functools import partial
 from mqttk.helpers import validate_name, validate_int
-
+import uuid
 
 class ConnectionFrame(ttk.Frame):
     def __init__(self, container, connection_name, on_select_callback=None, *args, **kwargs):
@@ -89,9 +89,9 @@ class ConfigurationWindow(tk.Toplevel):
         self.connections_frame.pack(side=tk.LEFT, anchor="w", fill="y", padx=3, pady=3)
         self.connections_listbox = ScrollFrame(self.connections_frame)
         self.connections_listbox.pack(fill='both', padx=3, pady=3, expand=1)
-        self.add_connection_button = ttk.Button(self.connections_frame, text="Add", command=self.new_connection)
+        self.add_connection_button = ttk.Button(self.connections_frame, text="添加", command=self.new_connection)
         self.add_connection_button.pack(padx=3, pady=3, side="right")
-        self.remove_connection_button = ttk.Button(self.connections_frame, text="Remove", command=self.on_remove)
+        self.remove_connection_button = ttk.Button(self.connections_frame, text="删除", command=self.on_remove)
         self.remove_connection_button.pack(padx=3, pady=3, side="right")
 
         # Connection configuration frame
@@ -101,7 +101,7 @@ class ConfigurationWindow(tk.Toplevel):
         # Profile name
         self.profile_name_frame = ttk.Frame(self.connection_configuration_frame)
         self.profile_name_frame.pack(fill="x")
-        self.profile_label = ttk.Label(self.profile_name_frame, width=20, anchor="e", text="Profile name")
+        self.profile_label = ttk.Label(self.profile_name_frame, width=20, anchor="e", text="配置昵称")
         self.profile_label.pack(side=tk.LEFT, anchor="w", padx=2, pady=4)
         self.profile_name_input = ttk.Entry(self.profile_name_frame)
         self.profile_name_input.pack(side=tk.LEFT, padx=2)
@@ -109,7 +109,7 @@ class ConfigurationWindow(tk.Toplevel):
         # Broker address
         self.broker_address_frame = ttk.Frame(self.connection_configuration_frame)
         self.broker_address_frame.pack(fill="x")
-        self.broker_label = ttk.Label(self.broker_address_frame, width=20, anchor="e", text="Broker address")
+        self.broker_label = ttk.Label(self.broker_address_frame, width=20, anchor="e", text="代理人/服务器地址")
         self.broker_label.pack(side=tk.LEFT, anchor="w", padx=2, pady=4)
         self.broker_address_input = ttk.Entry(self.broker_address_frame, background="white")
         self.broker_address_input.pack(side=tk.LEFT, padx=2)
@@ -117,7 +117,7 @@ class ConfigurationWindow(tk.Toplevel):
         # Broker port
         self.broker_port_frame = ttk.Frame(self.connection_configuration_frame)
         self.broker_port_frame.pack(fill="x")
-        self.broker_port_label = ttk.Label(self.broker_port_frame, width=20, anchor="e", text="Broker port")
+        self.broker_port_label = ttk.Label(self.broker_port_frame, width=20, anchor="e", text="代理人/服务器端口")
         self.broker_port_label.pack(side=tk.LEFT, anchor="w", padx=2, pady=4)
         self.broker_port_name_input = ttk.Entry(self.broker_port_frame)
         self.broker_port_name_input.configure(validate="all", validatecommand=vcmd)
@@ -126,7 +126,7 @@ class ConfigurationWindow(tk.Toplevel):
         # Client ID
         self.client_id_frame = ttk.Frame(self.connection_configuration_frame)
         self.client_id_frame.pack(fill="x")
-        self.client_id_label = ttk.Label(self.client_id_frame, width=20, anchor="e", text="Client ID")
+        self.client_id_label = ttk.Label(self.client_id_frame, width=20, anchor="e", text="客户端ID")
         self.client_id_label.pack(side=tk.LEFT, anchor="w", padx=2, pady=4)
         self.client_id_input = ttk.Entry(self.client_id_frame)
         self.client_id_input.pack(side=tk.LEFT, padx=2)
@@ -138,7 +138,7 @@ class ConfigurationWindow(tk.Toplevel):
         # username
         self.username_frame = ttk.Frame(self.connection_configuration_frame)
         self.username_frame.pack(fill="x")
-        self.username_label = ttk.Label(self.username_frame, width=20, anchor="e", text="Username")
+        self.username_label = ttk.Label(self.username_frame, width=20, anchor="e", text="用户名")
         self.username_label.pack(side=tk.LEFT, anchor="w", padx=2, pady=4)
         self.username_input = ttk.Entry(self.username_frame)
         self.username_input.pack(side=tk.LEFT, padx=2)
@@ -146,7 +146,7 @@ class ConfigurationWindow(tk.Toplevel):
         # password
         self.password_frame = ttk.Frame(self.connection_configuration_frame)
         self.password_frame.pack(fill="x")
-        self.password_label = ttk.Label(self.password_frame, width=20, anchor="e", text="Password")
+        self.password_label = ttk.Label(self.password_frame, width=20, anchor="e", text="密码")
         self.password_label.pack(side=tk.LEFT, anchor="w", padx=2, pady=4)
         self.password_input = ttk.Entry(self.password_frame, show='*')
         self.password_input.pack(side=tk.LEFT, padx=2)
@@ -239,11 +239,11 @@ class ConfigurationWindow(tk.Toplevel):
 
         self.button_frame = ttk.Frame(self.connection_configuration_frame)
         self.button_frame.pack(side='bottom', fill='x', anchor='s', expand=1)
-        self.ok_button = ttk.Button(self.button_frame, text="OK", command=self.ok)
+        self.ok_button = ttk.Button(self.button_frame, text="确定", command=self.ok)
         self.ok_button.pack(side=tk.RIGHT, pady=5, padx=5)
-        self.apply_button = ttk.Button(self.button_frame, text="Apply", command=self.apply)
+        self.apply_button = ttk.Button(self.button_frame, text="应用", command=self.apply)
         self.apply_button.pack(side=tk.RIGHT, pady=5, padx=5)
-        self.cancel_button = ttk.Button(self.button_frame, text="Cancel", command=self.cancel)
+        self.cancel_button = ttk.Button(self.button_frame, text="取消", command=self.cancel)
         self.cancel_button.pack(side=tk.RIGHT, pady=5, padx=5)
 
         self.all_config_state_change("disabled")
@@ -350,7 +350,7 @@ class ConfigurationWindow(tk.Toplevel):
                 self.broker_port_name_input.insert(0, self.currently_selected_connection_dict.get("broker_port",
                                                                                                   "1883"))
                 self.client_id_input.delete(0, tk.END)
-                self.client_id_input.insert(0, self.currently_selected_connection_dict.get("client_id", "MQTTk_Client"))
+                self.client_id_input.insert(0, self.currently_selected_connection_dict.get("client_id", str(uuid.uuid4()).replace("-", "")))
                 self.username_input.delete(0, tk.END)
                 self.username_input.insert(0, self.currently_selected_connection_dict.get("user", ""))
                 self.password_input.delete(0, tk.END)
