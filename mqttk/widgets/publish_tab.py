@@ -121,7 +121,7 @@ class PublishTab(ttk.Frame):
         self.publish_paned_window.pack(fill='both', expand=1, side=tk.LEFT)
         self.saved_publishes = ScrollFrame(self)
         self.saved_publishes.pack(fill="y", expand=1, side=tk.LEFT)
-        self.publish_paned_window.add(self.saved_publishes, width=350)
+        self.publish_paned_window.add(self.saved_publishes, width=160)
 
         self.publish_interface = ttk.Frame(self)
         self.publish_interface.pack(fill='both', expand=1)
@@ -130,7 +130,7 @@ class PublishTab(ttk.Frame):
         self.publish_interface_actions.pack(fill='x', side=tk.TOP)
         self.publish_topic_selector = ttk.Combobox(self.publish_interface_actions, width=40)
         self.publish_topic_selector.pack(side=tk.LEFT, padx=4, pady=4)
-        self.publish_topic_selector['values'] = ["Chat","LED"]
+        self.publish_topic_selector['values'] = ["chat","led"]
 
         self.publish_button = ttk.Button(self.publish_interface_actions, text="发布")
         self.publish_button['command'] = self.on_publish_button
@@ -284,7 +284,6 @@ class PublishTab(ttk.Frame):
                 publish_history_element.destroy()
             self.publish_history_frames = {}
             self.payload_editor.delete(1.0, tk.END)
-            self.publish_topic_selector.configure(values=["Chat","LED"])
             self.publish_topic_selector.set("")
 
         self.publish_button.configure(state="normal" if connection_state is CONNECT else "disabled")

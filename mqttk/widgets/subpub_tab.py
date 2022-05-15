@@ -121,38 +121,42 @@ class SubPubTab(ttk.Frame):
         self.publish_paned_window = tk.PanedWindow(self,
                                                    orient=tk.HORIZONTAL,
                                                    sashrelief="groove",
-                                                   sashwidth=6,
+                                                   sashwidth=2,
                                                    sashpad=2,
                                                    background=background_colour)
         self.publish_paned_window.pack(fill='both', expand=1, side=tk.LEFT)
         self.saved_publishes = ScrollFrame(self)
         self.saved_publishes.pack(fill="y", expand=1, side=tk.LEFT)
-        self.publish_paned_window.add(self.saved_publishes, width=350)
+        self.publish_paned_window.add(self.saved_publishes, width=160)
 
         self.subpub_interface = ttk.Frame(self)
         self.subpub_interface.pack(fill='both', expand=1)
 
         self.publish_interface_actions = ttk.Frame(self.subpub_interface)
         self.publish_interface_actions.pack(fill='x', side=tk.TOP)
-        self.publish_topic_selector = ttk.Combobox(self.publish_interface_actions, width=40)
+        self.publish_topic_selector = ttk.Combobox(self.publish_interface_actions, width=15)
         self.publish_topic_selector.pack(side=tk.LEFT, padx=4, pady=4)
-        self.publish_topic_selector['values'] = ["Chat","LED"]
+        self.publish_topic_selector['values'] = ["chat","led"]
 
-        self.publish_button = ttk.Button(self.publish_interface_actions, text="发布")
+        self.publish_button = ttk.Button(self.publish_interface_actions, text="发布", width=8)
         self.publish_button['command'] = self.on_publish_button
         self.publish_button.pack(side=tk.LEFT, padx=2, pady=4)
         # Subscribe button
-        self.subscribe_button = ttk.Button(self.publish_interface_actions, text="订阅")
+        self.subscribe_button = ttk.Button(self.publish_interface_actions, text="订阅", width=8)
         self.subscribe_button.pack(side=tk.LEFT, padx=2, pady=4)
         self.subscribe_button["command"] = self.add_subscription
 
-        self.unsubscribe_button = ttk.Button(self.publish_interface_actions, text="取消订阅")
+        self.unsubscribe_button = ttk.Button(self.publish_interface_actions, text="取消订阅", width=8)
         self.unsubscribe_button.pack(side=tk.LEFT, padx=2, pady=4)
         self.unsubscribe_button["command"] = self.on_unsubscribe
 
-        self.save_publish_button = ttk.Button(self.publish_interface_actions, text="Save")
-        self.save_publish_button.pack(side=tk.LEFT, padx=4, pady=4)
+        self.save_publish_button = ttk.Button(self.publish_interface_actions, text="Save", width=8)
+        self.save_publish_button.pack(side=tk.LEFT, padx=2, pady=4)
         self.save_publish_button["command"] = self.on_publish_save
+        # Flush messages button
+        self.flush_messages_button = ttk.Button(self.publish_interface_actions, text="清空消息", width=8)
+        self.flush_messages_button.pack(side=tk.RIGHT, padx=4)
+        self.flush_messages_button["command"] = self.flush_messages
 
         self.retained_state_var = tk.IntVar()
         self.retained_checkbox = ttk.Checkbutton(self.publish_interface_actions,
@@ -161,7 +165,6 @@ class SubPubTab(ttk.Frame):
                                                  offvalue=0,
                                                  variable=self.retained_state_var)
         self.retained_checkbox.pack(side=tk.RIGHT, pady=4, padx=2)
-
         self.qos_selector = ttk.Combobox(self.publish_interface_actions,
                                          exportselection=False,
                                          width=7,
@@ -169,7 +172,7 @@ class SubPubTab(ttk.Frame):
         self.qos_selector.current(0)
         self.qos_selector.pack(side=tk.RIGHT, pady=4, padx=2)
 
-        self.payload_editor = CustomScrolledText(self.subpub_interface,font="Courier 13",background="white", foreground="black",height = 5)
+        self.payload_editor = CustomScrolledText(self.subpub_interface,font="Courier 13",background="white", foreground="black",height = 2)
         self.payload_editor.pack(fill="x", expand=False, after=self.publish_interface_actions)
 
         # Subscribe bottom part frame
@@ -214,11 +217,12 @@ class SubPubTab(ttk.Frame):
         self.incoming_messages_scrollbar_h.pack(side=tk.BOTTOM, fill='x')
         self.incoming_messages_list.pack(side=tk.LEFT, fill='both', expand=1)
 
-        self.message_paned_window.add(self.incoming_messages_frame, height=300)
+        self.message_paned_window.add(self.incoming_messages_frame, height=600)
         self.publish_paned_window.add(self.subpub_interface)
 
     def interface_toggle(self, connection_state, mqtt_manager, current_connection):
         self.mqtt_manager = mqtt_manager
+        self.issubscribe = False
         if connection_state == CONNECT:
             self.load_publish_and_topic_history(current_connection)
             self.last_connection = self.current_connection
@@ -230,7 +234,6 @@ class SubPubTab(ttk.Frame):
                 publish_history_element.destroy()
             self.publish_history_frames = {}
             self.payload_editor.delete(1.0, tk.END)
-            self.publish_topic_selector.configure(values=["Chat","LED"])
             self.publish_topic_selector.set("")
 
         self.publish_button.configure(state="normal" if connection_state is CONNECT else "disabled")
@@ -246,7 +249,7 @@ class SubPubTab(ttk.Frame):
         self.publish_topic_selector.configure(state="normal" if (connection_state is DISCONNECT or self.issubscribe == False) else "disabled")
 
     def add_message(self, message_title, message_id):
-        message_data = self.get_message_details(message_id)
+        message_data = self.messages.get(message_id, {})
         try:
             payload_decoded = str(message_data.get("payload", "").decode("utf-8"))
         except Exception:
@@ -299,9 +302,6 @@ class SubPubTab(ttk.Frame):
         self.add_new_message(mqtt_message_object=msg,
                              subscription_pattern=subscription_pattern)
 
-    def get_message_details(self, message_id):
-        return self.messages.get(message_id, {})
-
     def on_unsubscribe(self):
         topic = self.publish_topic_selector.get()
         try:
@@ -312,12 +312,6 @@ class SubPubTab(ttk.Frame):
             self.publish_topic_selector.configure(state="normal")
         except Exception as e:
             self.log.warning("Failed to unsubscribe", topic, "maybe a failed subscription?")
-
-    def flush_messages(self):
-        self.message_id_counter = 0
-        self.incoming_messages_list.delete(0, "end")
-        self.messages = {}
-
 
     def on_publish_history_delete(self, name):
         self.publish_history_frames[name].pack_forget()
@@ -430,3 +424,8 @@ class SubPubTab(ttk.Frame):
         self.payload_editor.delete(1.0, tk.END)
         self.payload_editor.insert(1.0, base64.b64decode(history_item.configuration["payload"]).decode("utf-8"))
         self.current_publish_history_selected = history_item
+
+    def flush_messages(self):
+        self.message_id_counter = 0
+        self.incoming_messages_list.delete(0.0, tk.END)
+        self.messages = {}

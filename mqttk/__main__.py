@@ -122,7 +122,7 @@ class App:
         self.mqtt_manager = None
         self.current_connection_configuration = None
 
-        root.title("MQTTk")
+        root.title("MQTT客户端工具")
 
         # Restore window size and position, if not available or out of bounds, reset to default
         screenwidth = root.winfo_screenwidth()
@@ -135,7 +135,7 @@ class App:
 
         if out_of_bounds:
             width = 950
-            height = 600
+            height = 700
             alignstr = '%dx%d+%d+%d' % (width, height, (screenwidth - width) / 2, (screenheight - height) / 2)
             root.geometry(alignstr)
         else:
@@ -273,6 +273,7 @@ class App:
             self.subscribe_frame.interface_toggle(DISCONNECT, None, None)
             self.topic_browser.interface_toggle(DISCONNECT, None, None)
             self.header_frame.interface_toggle(DISCONNECT)
+            self.header_frame.connection_indicator_toggle(DISCONNECT)
             self.publish_frame.interface_toggle(DISCONNECT)
             self.subpub_frame.interface_toggle(DISCONNECT,None,None)
             self.broker_stats.interface_toggle(DISCONNECT, None)

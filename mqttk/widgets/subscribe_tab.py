@@ -153,7 +153,7 @@ class SubscribeTab(ttk.Frame):
         # Subscribe selector combobox
         self.subscribe_selector = ttk.Combobox(self.subscribe_bar_frame, width=30, exportselection=False)
         self.subscribe_selector.pack(side=tk.LEFT, padx=3, pady=3)
-        self.subscribe_selector["values"] = ["Chat","LED"]
+        self.subscribe_selector["values"] = ["chat","led"]
         # Subscribe button
         self.subscribe_button = ttk.Button(self.subscribe_bar_frame, width=10)
         self.subscribe_button.pack(side=tk.LEFT, padx=3, pady=3)
@@ -185,7 +185,7 @@ class SubscribeTab(ttk.Frame):
         self.subscription_paned_window.pack(side=tk.LEFT, fill="both", expand=1)
         self.subscriptions_frame = ScrollFrame(self.subscribe_tab_bottom_frame)
         self.subscriptions_frame.pack(fill="y", side=tk.LEFT)
-        self.subscription_paned_window.add(self.subscriptions_frame)
+        self.subscription_paned_window.add(self.subscriptions_frame, width=160)
 
         # Incoming message resizable panel
         self.message_paned_window = tk.PanedWindow(self.subscribe_tab_bottom_frame,
